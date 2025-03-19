@@ -79,7 +79,7 @@ def clear_entries():
     for entry in entries.values():
         entry.delete(0, tk.END)
 
-# Загрузка данных из БД в таблицу
+# Загрузка данных из БД в Treeview
 def load_data_from_db(tree, search_query=""):
     for item in tree.get_children():
         tree.delete(item)
@@ -88,26 +88,26 @@ def load_data_from_db(tree, search_query=""):
     cursor = conn.cursor()
 
     if search_query:
-        cursor.execute("SELECT title, director, release_year, genre, duration, rating, language, country, description FROM movies WHERE title LIKE ?", ('%' + search_query + '%',))
+        cursor.execute("SELECT id, title, director, release_year, genre, duration, rating, language, country, description FROM movies WHERE title LIKE ?", ('%' + search_query + '%',))
     else:
-        cursor.execute("SELECT title, director, release_year, genre, duration, rating, language, country, description FROM movies")
+        cursor.execute("SELECT id, title, director, release_year, genre, duration, rating, language, country, description FROM movies")
 
     rows = cursor.fetchall()
     for row in rows:
-        tree.insert("", "end", values=row)
+        tree.insert("", "end", values=row[1:], iid=row[0])  # iid = ID
 
     conn.close()
 
-# Поиск по названию
+# Функция для поиска
 def on_search():
     search_query = search_entry.get()
     load_data_from_db(tree, search_query)
 
-# Окно для добавления данных
+# Функция открытия окна для добавления данных вручную
 def add_data():
     global entries
     add_window = tk.Toplevel(root)
-    add_window.title("Filmi andmete sisestamine")
+    add_window.title("Lisa uus film")
 
     labels = ["Pealkiri", "Režissöör", "Aasta", "Žanr", "Kestus", "Reiting", "Keel", "Riik", "Kirjeldus"]
     entries = {}
@@ -118,8 +118,68 @@ def add_data():
         entry.grid(row=i, column=1, padx=10, pady=5)
         entries[label] = entry
 
-    submit_button = tk.Button(add_window, text="Sisesta andmed", command=insert_data)
+    submit_button = tk.Button(add_window, text="Sisesta andmed", command=lambda: [insert_data(), add_window.destroy()])
     submit_button.grid(row=len(labels), column=0, columnspan=2, pady=20)
+
+# Функция обновления записи
+def on_update():
+    selected_item = tree.selection()  
+    if selected_item:
+        record_id = selected_item[0]  
+        open_update_window(record_id)
+    else:
+        messagebox.showwarning("Valik puudub", "Palun vali kõigepealt rida!")
+
+# Открытие окна редактирования
+def open_update_window(record_id):
+    update_window = tk.Toplevel(root)
+    update_window.title("Muuda filmi andmeid")
+
+    conn = sqlite3.connect('movies.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT title, director, release_year, genre, duration, rating, language, country, description FROM movies WHERE id=?", (record_id,))
+    record = cursor.fetchone()
+    conn.close()
+
+    labels = ["Pealkiri", "Režissöör", "Aasta", "Žanr", "Kestus", "Reiting", "Keel", "Riik", "Kirjeldus"]
+    entries = {}
+
+    for i, label in enumerate(labels):
+        tk.Label(update_window, text=label).grid(row=i, column=0, padx=10, pady=5, sticky=tk.W)
+        entry = tk.Entry(update_window, width=50)
+        entry.grid(row=i, column=1, padx=10, pady=5)
+        entry.insert(0, record[i])
+        entries[label] = entry
+
+    save_button = tk.Button(update_window, text="Salvesta", command=lambda: update_record(record_id, entries, update_window))
+    save_button.grid(row=len(labels), column=0, columnspan=2, pady=10)
+
+# Функция обновления данных
+def update_record(record_id, entries, window):
+    conn = sqlite3.connect('movies.db')
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE movies
+        SET title=?, director=?, release_year=?, genre=?, duration=?, rating=?, language=?, country=?, description=?
+        WHERE id=?
+    """, (
+        entries["Pealkiri"].get(),
+        entries["Režissöör"].get(),
+        entries["Aasta"].get(),
+        entries["Žanr"].get(),
+        entries["Kestus"].get(),
+        entries["Reiting"].get(),
+        entries["Keel"].get(),
+        entries["Riik"].get(),
+        entries["Kirjeldus"].get(),
+        record_id
+    ))
+    conn.commit()
+    conn.close()
+
+    load_data_from_db(tree)
+    window.destroy()
+    messagebox.showinfo("Salvestamine", "Andmed on edukalt uuendatud!")
 
 # Основное окно
 root = tk.Tk()
@@ -138,11 +198,14 @@ search_entry.pack(side=tk.LEFT, padx=10)
 search_button = tk.Button(search_frame, text="Otsi", command=on_search)
 search_button.pack(side=tk.LEFT)
 
-# Кнопка добавления фильма
-open_button = tk.Button(root, text="Lisa andmeid", command=add_data)
-open_button.pack(pady=20)
+# Кнопки
+add_button = tk.Button(root, text="Lisa andmeid", command=add_data)
+add_button.pack(pady=10)
 
-# Фрейм для таблицы с прокруткой
+update_button = tk.Button(root, text="Uuenda", command=on_update)
+update_button.pack(pady=10)
+
+# Фрейм для таблицы
 frame = tk.Frame(root)
 frame.pack(pady=20, fill=tk.BOTH, expand=True)
 scrollbar = tk.Scrollbar(frame)
@@ -154,31 +217,14 @@ tree = ttk.Treeview(frame, yscrollcommand=scrollbar.set,
                     show="headings")
 tree.pack(fill=tk.BOTH, expand=True)
 
-# Связывание прокрутки с таблицей
 scrollbar.config(command=tree.yview)
 
-# Настройки колонок
-columns = {
-    "title": "Pealkiri",
-    "director": "Režissöör",
-    "year": "Aasta",
-    "genre": "Žanr",
-    "duration": "Kestus",
-    "rating": "Reiting",
-    "language": "Keel",
-    "country": "Riik",
-    "description": "Kirjeldus"
-}
-
-for col, header in columns.items():
+for col, header in [("title", "Pealkiri"), ("director", "Režissöör"), ("year", "Aasta"), ("genre", "Žanr"),
+                    ("duration", "Kestus"), ("rating", "Reiting"), ("language", "Keel"), ("country", "Riik"),
+                    ("description", "Kirjeldus")]:
     tree.heading(col, text=header)
     tree.column(col, width=100)
 
-tree.column("title", width=150)
-tree.column("description", width=200)
-
-# Загрузка данных в таблицу
 load_data_from_db(tree)
 
-# Запуск Tkinter
 root.mainloop()
