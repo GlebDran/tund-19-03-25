@@ -1,6 +1,7 @@
 import sqlite3
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import ttk
 create_table="""
 CREATE TABLE IF NOT EXISTS movies (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,6 +46,7 @@ def validate_data():
         return
 
     tk.messagebox.showinfo("Edu", "Andmed on kehtivad!")
+    clear_entries()
 
 # valideerib andmed ja lisab need andmebaasi
 def insert_data():
@@ -71,38 +73,83 @@ def insert_data():
         connection.close()
 
         messagebox.showinfo("Edu", "Andmed sisestati edukalt!")
-
-#puhastab kõik sisestusväljad
+        clear_entries()
+        #puhastab kõik sisestusväljad
 def clear_entries():
     for entry in entries.values():
         entry.delete(0, tk.END)
+# #GUI
 
-#GUI
+# root = tk.Tk()
+# root.title("Filmi andmete sisestamine")
 
-root = tk.Tk()
-root.title("Filmi andmete sisestamine")
+# # Loo sildid ja sisestusväljad
+# labels = ["Pealkiri", "Režissöör", "Aasta", "Žanr", "Kestus", "Reiting", "Keel", "Riik", "Kirjeldus"]
+# entries = {}
 
-# Loo sildid ja sisestusväljad
-labels = ["Pealkiri", "Režissöör", "Aasta", "Žanr", "Kestus", "Reiting", "Keel", "Riik", "Kirjeldus"]
-entries = {}
+# for i, label in enumerate(labels):
+#     tk.Label(root, text=label).grid(row=i, column=0, padx=10, pady=5)
+#     entry = tk.Entry(root, width=40)
+#     entry.grid(row=i, column=1, padx=10, pady=5)
+#     entries[label] = entry
 
-for i, label in enumerate(labels):
-    tk.Label(root, text=label).grid(row=i, column=0, padx=10, pady=5)
-    entry = tk.Entry(root, width=40)
-    entry.grid(row=i, column=1, padx=10, pady=5)
-    entries[label] = entry
+# # Loo nupp andmete sisestamiseks
+# submit_button = tk.Button(root, text="Sisesta andmed", command=validate_data)
+# submit_button.grid(row=len(labels), column=0, columnspan=2, pady=20)
 
-# Loo nupp andmete sisestamiseks
-submit_button = tk.Button(root, text="Sisesta andmed", command=validate_data)
-submit_button.grid(row=len(labels), column=0, columnspan=2, pady=20)
 
-#nupp kustutab kõik sisestusväljad
-clear_entries = tk.Button(root, text="PUHASTA", bg="red", fg="white", font=("Arial", 12, "bold"), command=clear_entries)
-clear_entries.grid(row=9, column=0, columnspan=1, padx=5, pady=20)
+# # Näita Tkinteri akent
+# root.mainloop()
 
-# Näita Tkinteri akent
-root.mainloop()
+# root = tk.Tk()
+# root.title("Filmid")
 
+
+# # Loo raam kerimisribaga
+# frame = tk.Frame(root)
+# frame.pack(pady=20, fill=tk.BOTH, expand=True)
+# scrollbar = tk.Scrollbar(frame)
+# scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+
+# # Loo tabel (Treeview) andmete kuvamiseks
+# tree = ttk.Treeview(frame, yscrollcommand=scrollbar.set, columns=("title", "director", "year", "genre", "duration", "rating", "language", "country", "description"), show="headings")
+# tree.pack(fill=tk.BOTH, expand=True)
+
+
+# # Seosta kerimisriba tabeliga
+# scrollbar.config(command=tree.yview)
+
+
+# # Määra veergude pealkirjad ja laius
+# tree.heading("title", text="Pealkiri")
+# tree.heading("director", text="Režissöör")
+# tree.heading("year", text="Aasta")
+# tree.heading("genre", text="Žanr")
+# tree.heading("duration", text="Kestus")
+# tree.heading("rating", text="Reiting")
+# tree.heading("language", text="Keel")
+# tree.heading("country", text="Riik")
+# tree.heading("description", text="Kirjeldus")
+
+# tree.column("title", width=150)
+# tree.column("director", width=100)
+# tree.column("year", width=60)
+# tree.column("genre", width=100)
+# tree.column("duration", width=60)
+# tree.column("rating", width=60)
+# tree.column("language", width=80)
+# tree.column("country", width=80)
+# tree.column("description", width=200)
+
+# # Lisa andmed tabelisse
+# tree.insert("", "end", values=("The Shawshank Redemption", "Frank Darabont", 1994, "Drama", 142, 9.3, "English", "USA", "Two imprisoned men bond over a number of years."))
+# tree.insert("", "end", values=("The Godfather", "Francis Ford Coppola", 1972, "Crime, Drama", 175, 9.2, "English", "USA", "The aging patriarch of an organized crime dynasty transfers control of his empire to his reluctant son."))
+# tree.insert("", "end", values=("The Dark Knight", "Christopher Nolan", 2008, "Action, Crime, Drama", 152, 9.0, "English", "USA", "When the menace known as the Joker emerges from his mysterious past, he wreaks havoc and chaos on the people of Gotham."))
+
+
+# Käivita Tkinteri tsükkel
+# root.mainloop()
 
 try:
     conn = sqlite3.connect('movies.db')
@@ -123,3 +170,110 @@ finally:
         conn.close()
         print("Ühendus suleti")
 
+#Funktsioon, mis laadib andmed SQLite andmebaasist ja sisestab need Treeview tabelisse
+def load_data_from_db(tree):
+    # Loo ühendus SQLite andmebaasiga
+    conn = sqlite3.connect('movies.db')
+    cursor = conn.cursor()
+
+    # Tee päring andmebaasist andmete toomiseks
+    cursor.execute("SELECT title, director, release_year, genre, duration, rating, language, country, description FROM movies")
+    rows = cursor.fetchall()
+
+    # Lisa andmed tabelisse
+    for row in rows:
+        tree.insert("", "end", values=row)
+
+    # Sulge ühendus andmebaasiga
+    conn.close()
+
+root = tk.Tk()
+root.title("Filmid")
+
+def on_search():
+    search_query = search_entry.get()
+    load_data_from_db(tree, search_query)
+# Avab lisamise faili
+def add_data():
+    subprocess.run(["python", "tund_19_03_25.py"])
+
+# Loo raam kerimisribaga
+frame = tk.Frame(root)
+frame.pack(pady=20, fill=tk.BOTH, expand=True)
+scrollbar = tk.Scrollbar(frame)
+scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+# Loo otsinguväli ja nupp
+search_frame = tk.Frame(root)
+search_frame.pack(pady=10)
+
+search_label = tk.Label(search_frame, text="Otsi filmi pealkirja järgi:")
+search_label.pack(side=tk.LEFT)
+
+search_entry = tk.Entry(search_frame)
+search_entry.pack(side=tk.LEFT, padx=10)
+
+search_button = tk.Button(search_frame, text="Otsi", command=on_search)
+search_button.pack(side=tk.LEFT)
+
+# Loo nupp, mis avab tund_19_03_25.py
+open_button = tk.Button(root, text="Lisa andmeid", command=add_data)
+open_button.pack(pady=20)
+
+# Loo tabel (Treeview) andmete kuvamiseks
+tree = ttk.Treeview(frame, yscrollcommand=scrollbar.set, columns=("title", "director", "year", "genre", "duration", "rating", "language", "country", "description"), show="headings")
+tree.pack(fill=tk.BOTH, expand=True)
+
+# Seosta kerimisriba tabeliga
+scrollbar.config(command=tree.yview)
+
+# Määra veergude pealkirjad ja laius
+tree.heading("title", text="Pealkiri")
+tree.heading("director", text="Režissöör")
+tree.heading("year", text="Aasta")
+tree.heading("genre", text="Žanr")
+tree.heading("duration", text="Kestus")
+tree.heading("rating", text="Reiting")
+tree.heading("language", text="Keel")
+tree.heading("country", text="Riik")
+tree.heading("description", text="Kirjeldus")
+
+tree.column("title", width=150)
+tree.column("director", width=100)
+tree.column("year", width=60)
+tree.column("genre", width=100)
+tree.column("duration", width=60)
+tree.column("rating", width=60)
+tree.column("language", width=80)
+tree.column("country", width=80)
+tree.column("description", width=200)
+
+# Lisa andmed tabelisse
+load_data_from_db(tree)
+
+root.mainloop()
+
+#Funktsioon, mis laadib andmed SQLite andmebaasist ja sisestab need Treeview tabelisse
+def load_data_from_db(tree, search_query=""):
+    # Puhasta Treeview tabel enne uute andmete lisamist
+    for item in tree.get_children():
+        tree.delete(item)
+
+    # Loo ühendus SQLite andmebaasiga
+    conn = sqlite3.connect('movies.db')
+    cursor = conn.cursor()
+
+    # Tee päring andmebaasist andmete toomiseks
+    if search_query:
+        cursor.execute("SELECT title, director, release_year, genre, duration, rating, language, country, description FROM movies WHERE title LIKE ?", ('%' + search_query + '%',))
+    else:
+        cursor.execute("SELECT title, director, release_year, genre, duration, rating, language, country, description FROM movies")
+
+    rows = cursor.fetchall()
+
+    # Lisa andmed tabelisse
+    for row in rows:
+        tree.insert("", "end", values=row)
+
+    # Sulge ühendus andmebaasiga
+    conn.close()
